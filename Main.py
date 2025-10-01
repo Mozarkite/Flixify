@@ -6,11 +6,11 @@ import plotly.io as pio
 import random
 
 
-API_KEY = "7da0188c1da7e6d0b2dd8b7950cf57f1"
-BASE_URL = "https://api.themoviedb.org/3"
+API_KEY = st.secrets["API_KEY"]
+BASE_URL = st.secrets["BASE_URL"]
 
 # -------------------------
-# API Functions
+# API Functions##
 # -------------------------
 
 def search_movie(movie_name):
@@ -29,7 +29,8 @@ def search_movie(movie_name):
         return movie
     else:
         return None
-    
+
+#Function that searches by 
 def search_movie_by_id(movie_name):
     url = f"{BASE_URL}/search/movie"
     params = {"api_key": API_KEY, "query": movie_name}
@@ -42,7 +43,7 @@ def search_movie_by_id(movie_name):
     else:
         return None
 
-
+#Function that gets the genres of that movie 
 def get_genres():
     url = f"{BASE_URL}/genre/movie/list"
     params = {"api_key": API_KEY}
@@ -50,7 +51,7 @@ def get_genres():
     data = response.json()
     return {genre["id"]: genre["name"] for genre in data["genres"]}
 
-
+#Function that returns the actors in the movie
 def get_actors(movie_id):
     url = f"{BASE_URL}/movie/{movie_id}/credits"
     params = {"api_key": API_KEY}
@@ -61,127 +62,131 @@ def get_actors(movie_id):
     actor_names = [actor["name"] for actor in cast[:5]]
     return actor_names
 
-def get_reccomendations(movie_id) :
-    
-    rec_url= f"{BASE_URL}/movie/{movie_id}/recommendations"
+#Function that gets the reccomendation
+def get_reccomendations(movie_id):
+    rec_url = f"{BASE_URL}/movie/{movie_id}/recommendations"
     params = {"api_key": API_KEY}
     response = requests.get(rec_url, params=params)
     data = response.json()
+    df = pd.DataFrame(data.get("results", []))
 
-    rec_response = requests.get(rec_url, params = params)
-    df = pd.DataFrame(rec_response.json()["results"])
+    if df.empty:
+        st.markdown("<h4 style='text-align: center; color: White;'>No recommendations found.</h4>", unsafe_allow_html=True)
+        return
 
-    top10_recommendations= df['original_title'].value_counts()[:6].index
-    top10_reccomendations_posters = df['poster_path'].value_counts()[:6].index
+    # Take top 6 recommendations
+    top6 = df.head(6)
 
+    titles = top6['original_title'].tolist()
+    posters = top6['poster_path'].tolist()
 
-    #st.write(top10_recommendations)
-    #st.write(top10_reccomendations_posters)
-
-
-    cols = st.columns(3)
+    # Display posters in two rows of 3
+    cols1 = st.columns(3)
     cols2 = st.columns(3)
 
-    
-    #Displaying first recommendations
-    for col, posters in zip(cols, top10_reccomendations_posters[:3]):
-        with col :
-            poster_url_1 = f"https://image.tmdb.org/t/p/w500{posters}" if posters else "https://via.placeholder.com/200x300?text=No+Poster"
+    #iterate up until 3
+    for col, poster in zip(cols1, posters[:3]):
+        poster_url = f"https://image.tmdb.org/t/p/w500{poster}" if poster else "https://via.placeholder.com/200x300?text=No+Poster"
+        col.image(poster_url, width=200)
 
-            st.image(poster_url_1, width=200)
+    #iterate from 3 onwards
+    for col, poster in zip(cols2, posters[3:]):
+        poster_url = f"https://image.tmdb.org/t/p/w500{poster}" if poster else "https://via.placeholder.com/200x300?text=No+Poster"
+        col.image(poster_url, width=200)
 
-   
+    # Statistics gathered as a df
+    top_df = top6[["original_title", "popularity", "vote_average", "vote_count","original_language"]]
+    top_df_sorted = top_df.sort_values("popularity", ascending=True)
+    top_df_sorted_count = top_df.sort_values("vote_count", ascending=True)
 
-    #Displaying the other 3 reccomendations
-    for col, posters in zip(cols, top10_reccomendations_posters[3:]):
-        with col :
-            poster_url_1 = f"https://image.tmdb.org/t/p/w500{posters}" if posters else "https://via.placeholder.com/200x300?text=No+Poster"
+    #dataframe of the 3 columns
+    graph_df = pd.DataFrame({
+        "Movies Reccomended": top_df_sorted["original_title"],
+        "popularity": top_df_sorted["popularity"],
+        "Average Vote": top_df_sorted["vote_average"]
+    })
 
-            st.image(poster_url_1, width=200)
-
-    #st.divider()
-
-    #Configs for the graph : sorting a dataframe by title, popularity and vote average
-    top_df = df[df["original_title"].isin(top10_recommendations)][["original_title","popularity","vote_average","vote_count"]]
-
-    top_df = top_df.sort_values("popularity",ascending=True)
-    top_df_2 = top_df.sort_values("vote_count",ascending=True)
-
-
-    graph_df = pd.DataFrame(
-
-        {
-            "Movies Reccomended" : top_df["original_title"],
-            "popularity" : top_df["popularity"],
-            "Average Vote": top_df["vote_average"]
-
-        }
-    
-    )
-
+    #bar chart configs
     st.divider()
     st.markdown("<h3 style='text-align: center; color: lightblue;'>Statistics</h3>", unsafe_allow_html=True)
-    st.write("")
-    
+    st.write("**Average Vote and popularity by Reccomendation**")
+    st.bar_chart(graph_df, x="Movies Reccomended", y=["popularity", "Average Vote"], color=["#2C3E50","#87CEEB"])
 
-    st.write(f"**Average Vote and popularity by Reccomendation**")
-    #Display the graph
-    st.bar_chart(
-
-        graph_df,
-        x = "Movies Reccomended",
-        y = ["popularity","Average Vote"],
-        color = ["#2C3E50","#87CEEB"] # Dark Slate 
-
-    )
-
+    #pie chart configs
     fig = px.pie(
-        top_df_2,
-        values ="vote_count",
-        names = "original_title",
-        title = "Vote Count by Reccomendation",
-        color_discrete_sequence = [
-            "#2F4F4F",  # Dark Slate Gray
-            "#708090",  # Slate Gray
-            "#778899",  # Light Slate Gray
-            "#1E3A5F",  # Dark Blue Slate
-            "#3B5998",  # Classic Slate Blue
-            "#6A5ACD" ] # Slate Blue
-
+        top_df_sorted_count,
+        values="vote_count",
+        names="original_title",
+        title="Vote Count by Reccomendation",
+        color_discrete_sequence=["#2F4F4F","#708090","#778899","#1E3A5F","#3B5998","#6A5ACD"]
     )
-
     st.plotly_chart(fig)
 
+        
+    #dataframe for debugging
     #st.dataframe(df)
+    st.write(top_df[['original_title', 'original_language']])
 
 
 
-def get_new_movies() :
-
+def get_new_movies():
     url = "https://api.themoviedb.org/3/movie/upcoming?language=en-US&page=1"
-
     params = {"api_key": API_KEY}
+    response = requests.get(url, params=params)
 
-    response = requests.get(url, params = params)
-
+    #dataframe to hold new movies
     df_new_movies = pd.DataFrame(response.json()["results"])
 
-    top10_recommendations= df_new_movies['original_title'].value_counts()[:6].index
-    top10_reccomendations_posters = list(df_new_movies['poster_path'].value_counts()[:100].index)
-
-    cols = st.columns(4)
+    # Get top 100 posters and randomly pick 4
+    top_posters = df_new_movies[df_new_movies['poster_path'].notna()].head(100)
+    random_upcoming= top_posters.sample(4)
     
-    random_posters = random.sample(top10_reccomendations_posters, 4)
+    #creates a list of all 4 random posters
+    top4_posters = list(random_upcoming['poster_path'].head(4))
+
+    # Create 4 columns for display
+    cols = st.columns(4)
+
+    
+
+    # Display the posters
+    for col, poster in zip(cols, top4_posters):
+        poster_url = f"https://image.tmdb.org/t/p/w500{poster}" if poster else "https://via.placeholder.com/200x300?text=No+Poster"
+        with col:
+            st.image(poster_url, width=200)
+        
+    
+    st.divider()
+
+    #Dataframe of the title, release date and the original language
+    st.dataframe(random_upcoming[['original_title',"release_date",'original_language']])
 
 
-    #Displaying first recommendations
-    for col, posters in zip(cols, random_posters):
-        with col :
-            poster_url_1 = f"https://image.tmdb.org/t/p/w500{posters}" if posters else "https://via.placeholder.com/200x300?text=No+Poster"
 
-            st.image(poster_url_1, width=200)
+    graph_df = pd.DataFrame({
+        "Movies": random_upcoming["original_title"],
+        "popularity": random_upcoming["popularity"],
+        "Average Vote": random_upcoming["vote_average"],
+    })
+    
+    #pie chart configs
+    fig = px.pie(
+       graph_df,
+        values="Average Vote",
+        names="Movies",
+        title="Vote Count For Upcoming Movies",
+        color_discrete_sequence=["#708090","#1E3A5F","#3B5998","#6A5ACD"]
+    )
+    st.plotly_chart(fig)
 
 
+    st.write("**Popularity of Upcoming Movies**")
+    st.bar_chart(graph_df, x="Movies", y=["popularity"], color=["#2C3E50"])
+
+
+
+    
+#List of all of the genres
 all_genres = get_genres()
 
 # -------------------------
@@ -191,9 +196,13 @@ all_genres = get_genres()
 
 hide_decoration_bar_style = '''<style>header {visibility: hidden;}</style>'''
 st.markdown(hide_decoration_bar_style, unsafe_allow_html=True)
+
+
 # Design hide "made with streamlit" footer menu area
 hide_streamlit_footer = """<style>#MainMenu {visibility: hidden;}
                         footer {visibility: hidden;}</style>"""
+
+
 st.markdown(hide_streamlit_footer, unsafe_allow_html=True)
 
 
@@ -208,10 +217,12 @@ st.divider()
 col1, col2 = st.columns([1, 2], vertical_alignment="top")
 
 with col1:
+
     movie_name = st.text_input("Enter a movie name:", width=200)
     poster_ph = st.empty()
 
 with col2:
+    
     title_ph = st.empty()
     release_ph = st.empty()
     genres_ph = st.empty()
@@ -224,6 +235,7 @@ title_ph.subheader("Movie Title --")
 release_ph.write("📅 Release Date: ---")
 actors_ph.write("🎭 Actors ---")
 genres_ph.write("📕 Genres: ---")
+st.divider()
 
 # When user searches
 selected_title = None
@@ -231,7 +243,10 @@ searched_movie = None
 
 if movie_name:
     movie = search_movie(movie_name)
+    
+    #if the movie does exist in the database
     if movie:
+
         selected_title = movie.get('title')
         searched_movie = movie  # Save searched movie for later
         movie_id = movie.get('id')
@@ -241,6 +256,7 @@ if movie_name:
         genres = movie.get("genre_names", [])
         actors = get_actors(movie_id)
 
+        #change image of th poster to placeholder
         poster_url = f"https://image.tmdb.org/t/p/w500{poster_path}" if poster_path else "https://via.placeholder.com/200x300?text=No+Poster"
 
         poster_ph.image(poster_url, width=200)
@@ -249,6 +265,8 @@ if movie_name:
         genres_ph.write("📕 Genres - " + (" - ".join(genres) if genres else "NA"))
         actors_ph.write(f"🎭 Actors - {', '.join(actors) if actors else 'NA'}")
         overview_ph.write(overview)
+    
+    #placeholders
     else:
         poster_ph.image("Assets/placeholder.jpg", width=200)
         title_ph.subheader("Movie Title --")
@@ -256,31 +274,44 @@ if movie_name:
         actors_ph.write("🎭 Actors ---")
         genres_ph.write("📕 Genres: ---")
 
-#Divider for the next section
-st.divider()
+    #if the movie does not exist 
+    if movie is None :
+        
+        #Warning if the movie is invalid
+        st.warning("Movie Not Found in Database, Plase Enter Valid Movie.")
+        
+        
+    else :
+        
+        if movie_name :
+
+            #selection box configs
+            option = st.selectbox(
+                "What would you like to view?",
+                ("Reccomendations","Upcoming Movies"),
+                index=None,
+            placeholder="Select options available..."
+
+            )
+            
+            #checks if option is reccomendation
+            if option == "Reccomendations":
+
+                st.markdown("<h2 style='text-align: center; color: lightblue;'>Reccomendations </h2>", unsafe_allow_html=True)
+                movie_identity = search_movie_by_id(movie_name)
+                get_reccomendations(movie_identity)
+                st.divider()
 
 
-if movie_name :
+            #checks if option is upcoming movies
+            elif option == "Upcoming Movies" :
 
-    option = st.selectbox(
-        "What would you like to view?",
-        ("Reccomendations","Upcoming Movies"),
-        index=None,
-    placeholder="Select options available..."
-
-    )
-    if option == "Reccomendations":
-
-        st.markdown("<h2 style='text-align: center; color: lightblue;'>Reccomendations </h2>", unsafe_allow_html=True)
-        movie_identity = search_movie_by_id(movie_name)
-        get_reccomendations(movie_identity)
-        st.divider()
+                st.markdown("<h2 style='text-align: center; color: lightblue;'>Upcoming Movies </h2>", unsafe_allow_html=True)
+                get_new_movies()
+                st.divider()
 
 
-    elif option == "Upcoming Movies" :
-        st.markdown("<h2 style='text-align: center; color: lightblue;'>Upcoming Movies </h2>", unsafe_allow_html=True)
-        get_new_movies()
-        st.divider()
+
 
     
     
