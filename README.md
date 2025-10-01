@@ -7,11 +7,11 @@ Search for a movie, see its details, and get recommendations or explore upcoming
 
 ## ❓ Why use TMDB API?
 
-Originally, I planned on using the Spotify API and applying cosine similarity to create a recommendation system based on vectors.  
+Originally, I planned on using the Spotify API and applying cosine similarity to create a recommendation system based on vectors.
 Unfortunately, Spotify removed features from songs such as danceability, tone, mood, etc.  
 
 Because of this, I decided to go with **TMDB**, which allows me to fetch information such as:  
-🎥 Movie titles • 🎭 Actors • 📖 Overviews • 📚 Genres • 🤝 Recommendations • 🔮 Upcoming movies  
+Movie titles •  Actors •  Overviews •  Genres •  Recommendations •  Upcoming movies  
 
 ---
 
