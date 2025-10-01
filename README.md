@@ -4,6 +4,7 @@ Flixify is a Streamlit web app that recommends movies to users using the TMDB AP
 Search for a movie, see its details, and get recommendations or explore upcoming films. 
 
 You can access this Web App at : https://flixify.streamlit.app/
+NOTE : This app was mainly designed for Desktop Usage
 
 ---
 
